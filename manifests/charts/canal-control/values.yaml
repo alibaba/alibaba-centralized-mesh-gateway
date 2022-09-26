@@ -1,0 +1,24 @@
+# Default values for canal-control.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+gateways:
+  canal-controller:
+    name: canal-controller
+    istioNamespace: istio-system
+
+revision: ""
+
+global:
+  imagePullSecrets: []
+  hub: ""
+  tag: ""
+  imagePullPolicy: ""
+
+controller:
+  revision: ""
+  replicaCount: 1
+  autoscaleEnabled: true
+  rollingMaxSurge: 100%
+  rollingMaxUnavailable: 25%
+  image: ""

@@ -1,0 +1,40 @@
+{{ $gateway := index .Values "gateways" "canal-controller" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canal-controller{{- if not (eq .Values.revision "") }}-{{ .Values.revision }}{{- end }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: canal-controller
+spec:
+{{- if not .Values.controller.autoscaleEnabled }}
+{{- if .Values.controller.replicaCount }}
+  replicas: {{ .Values.controller.replicaCount }}
+{{- end }}
+{{- end }}
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ .Values.controller.rollingMaxSurge }}
+      maxUnavailable: {{ .Values.controller.rollingMaxUnavailable }}
+  selector:
+    matchLabels:
+      app: canal-controller
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: canal-controller
+        sidecar.istio.io/inject: "false"
+    spec:
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      containers:
+        - name: canal-controller
+{{- if contains "/" .Values.controller.image }}
+          image: "{{ .Values.controller.image }}"
+{{- else }}
+          image: "{{ .Values.global.hub | default .Values.global.hub }}/{{ .Values.controller.image | default "canalcontroller" }}:{{ .Values.global.tag | default .Values.global.tag }}"
+{{- end }}
+          imagePullPolicy: Always
+      serviceAccountName: {{ $gateway.name }}-service-account

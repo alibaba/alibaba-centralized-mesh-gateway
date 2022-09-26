@@ -1,0 +1,84 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: canalcontroller
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - networking.istio.io
+    resources:
+      - gateways
+      - virtualservices
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: canalcontroller
+  namespace: istio-system
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: canalcontroller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: canalcontroller
+subjects:
+  - kind: ServiceAccount
+    name: canalcontroller
+    namespace: istio-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: canalcontroller
+  name: canalcontroller
+  namespace: istio-system
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: canalcontroller
+  strategy:
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: canalcontroller
+        sidecar.istio.io/inject: "false"
+    spec:
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      imagePullSecrets:
+      - name: aliyun-secret
+      containers:
+      - name: canalcontroller
+        image: registry-vpc.us-west-1.aliyuncs.com/wg/canalcontroller:latest
+        imagePullPolicy: Always
+      serviceAccountName: canalcontroller
