@@ -249,6 +249,8 @@ spec:
 ```
 2. remove the old service.
 
-
 # License
 [Apache License 2.0](./LICENSE)
+
+# Welcome to communicate with us
+![avatar](./communication-group.jpg)
