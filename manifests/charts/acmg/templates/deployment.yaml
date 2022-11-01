@@ -1,4 +1,3 @@
-{{ $acmg := index .Values "acmg" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,7 +7,7 @@ metadata:
     app: acmg
     operator.istio.io/component: "acmg-hijack"
 spec:
-  replicas: {{ $acmg.replicaCount }}
+  replicas: {{ .Values.acmg.replicaCount }}
   selector:
     matchLabels:
       app: acmg
@@ -20,12 +19,12 @@ spec:
       dnsPolicy: ClusterFirst
       enableServiceLinks: true
       containers:
-        - name: canal-controller
-  {{- if contains "/" .Values.acmg.image }}
+        - name: acmg-controller
+{{- if contains "/" .Values.acmg.image }}
           image: "{{ .Values.acmg.image }}"
-  {{- else }}
-          image: "{{ .Values.global.hub | default .Values.global.hub }}/{{ .Values.controller.image | default "acmg" }}:{{ .Values.global.tag | default .Values.global.tag }}"
-  {{- end }}
+{{- else }}
+          image: "{{ .Values.global.hub | default .Values.global.hub }}/{{ .Values.acmg.image | default "acmg" }}:{{ .Values.global.tag | default .Values.global.tag }}"
+{{- end }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           args:
             - "acmg-controller"
