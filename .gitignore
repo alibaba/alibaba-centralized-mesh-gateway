@@ -18,3 +18,5 @@
 .idea
 
 centralized/push-acr.sh
+
+out
