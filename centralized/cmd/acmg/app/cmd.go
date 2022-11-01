@@ -20,6 +20,7 @@ import (
 	"istio.io/istio/centralized/pkg/server"
 	"istio.io/istio/pkg/cmd"
 	"istio.io/pkg/log"
+	"istio.io/pkg/version"
 )
 
 var (
@@ -49,6 +50,8 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("failed to create acmg informer service: %v", err)
 		}
 		if err := server.PreStartCheck(); err != nil {
+			log.Errorf(err)
+		} else {
 			server.Start()
 		}
 		return
@@ -61,5 +64,6 @@ func GetCommand() *cobra.Command {
 }
 
 func init() {
-
+	rootCmd.AddCommand(version.CobraCommand())
+	logOptions.AttachCobraFlags(rootCmd)
 }

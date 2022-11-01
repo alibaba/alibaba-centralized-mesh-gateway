@@ -27,7 +27,6 @@ spec:
 {{- end }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           args:
-            - "acmg-controller"
 {{- if .Values.global.logging.level }}
             - --log_output_level={{ .Values.global.logging.level }}
 {{- end}}

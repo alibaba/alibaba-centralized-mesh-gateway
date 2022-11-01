@@ -9,7 +9,7 @@ var (
 	IstioGatewayName       = env.RegisterStringVar("GATEWAY_NAME", "istio-gateway", "").Get()
 	GatewayServiceName     = env.RegisterStringVar("GATEWAY_SERVICE_NAME", "acmg-gateway", "").Get()
 	GatewayNamespace       = env.RegisterStringVar("GATEWAY_NAMESPACE", "istio-system", "").Get()
-	CentralizedGateWayName = env.RegisterStringVar("CENTRALIZED_GATEWAYNAME", "traffix-gateway", "").Get()
+	CentralizedGateWayName = env.RegisterStringVar("CENTRALIZED_GATEWAYNAME", "traffic-gateway", "").Get()
 )
 
 type CoreDnsHijackArgs struct {

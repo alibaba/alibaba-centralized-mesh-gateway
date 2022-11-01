@@ -17,6 +17,6 @@
 
 .idea
 
-centralized/push-acr.sh
+push-acr.sh
 
 out

@@ -6,7 +6,6 @@ import (
 	apiv1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/client-go/pkg/apis/networking/v1alpha3"
 	istioclient "istio.io/client-go/pkg/clientset/versioned"
-	istioinformer "istio.io/client-go/pkg/informers/externalversions"
 	listerv1alpha3 "istio.io/client-go/pkg/listers/networking/v1alpha3"
 	"istio.io/istio/pkg/kube"
 	"istio.io/istio/pkg/kube/controllers"
@@ -16,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"time"
 )
 
 type Server struct {
@@ -43,10 +41,11 @@ func NewServer(ctx context.Context, args CoreDnsHijackArgs) (*Server, error) {
 	coreDnsBuilder := &CoreDnsBuilder{
 		kubeClient: client.Kube(),
 		gatewayData: GatewayData{
-			gatewayNamespace:   args.GatewayNamespace,
-			gatewayServiceName: args.GatewayServiceName,
-			istioGatewayName:   args.GateWayName,
-			gatewayDns:         args.GatewayServiceName + "." + args.GatewayNamespace + ".svc.cluster.local",
+			gatewayNamespace:       args.GatewayNamespace,
+			gatewayServiceName:     args.GatewayServiceName,
+			istioGatewayName:       args.GateWayName,
+			centralizedGateWayName: args.CentralizedGateWayName,
+			gatewayDns:             args.GatewayServiceName + "." + args.GatewayNamespace + ".svc.cluster.local",
 		},
 	}
 	s.coreDnsBuilder = coreDnsBuilder
@@ -171,18 +170,18 @@ func (s *Server) Reconcile(key any) error {
 }
 
 func (s *Server) setupHandler() {
+	log.Info("Setting up event handlers")
+
 	s.queue = controllers.NewQueue("centralizedMesh",
 		controllers.WithGenericReconciler(s.Reconcile),
 		controllers.WithMaxAttempts(5),
 	)
-	istioInformer := istioinformer.NewSharedInformerFactoryWithOptions(s.istioClient, time.Second*30)
-	vsInformer := istioInformer.Networking().V1alpha3().VirtualServices()
+	vsInformer := s.client.IstioInformer().Networking().V1alpha3().VirtualServices()
 	s.vsLister = vsInformer.Lister()
 
-	gwInformer := istioInformer.Networking().V1alpha3().Gateways()
+	gwInformer := s.client.IstioInformer().Networking().V1alpha3().Gateways()
 	s.gwLister = gwInformer.Lister()
 
-	log.Info("Setting up event handlers")
 	vsInformer.Informer().AddEventHandler(s.vsHandler())
 }
 
@@ -221,7 +220,8 @@ func (s *Server) checkConfig() error {
 		return fmt.Errorf("gateway num is %d, should be 1", len(gateways))
 	}
 	if gateways[0].Name != s.coreDnsBuilder.gatewayData.istioGatewayName ||
-		gateways[0].Namespace != s.coreDnsBuilder.gatewayData.gatewayNamespace {
+		gateways[0].Namespace != s.coreDnsBuilder.gatewayData.gatewayNamespace ||
+		gateways[0].Spec.Selector["app"] != s.coreDnsBuilder.gatewayData.centralizedGateWayName {
 		return fmt.Errorf("gateway %s not belong to acmg", gateways[0].Name)
 	}
 	return nil

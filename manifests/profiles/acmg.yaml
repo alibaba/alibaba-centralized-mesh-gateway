@@ -9,7 +9,7 @@ spec:
     pilot:
       enabled: true
     ingressGateways:
-    - name: acmg-gateway
+    - name: traffic-gateway
       enabled: true
     acmg:
       enabled: true
