@@ -1,0 +1,41 @@
+{{ $acmg := index .Values "acmg" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acmg-controller{{- if not (eq .Values.revision "") }}-{{ .Values.revision }}{{- end }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: acmg
+    operator.istio.io/component: "acmg-hijack"
+spec:
+  replicas: {{ $acmg.replicaCount }}
+  selector:
+    matchLabels:
+      app: acmg
+  template:
+    metadata:
+      labels:
+        app: acmg
+    spec:
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      containers:
+        - name: canal-controller
+  {{- if contains "/" .Values.acmg.image }}
+          image: "{{ .Values.acmg.image }}"
+  {{- else }}
+          image: "{{ .Values.global.hub | default .Values.global.hub }}/{{ .Values.controller.image | default "acmg" }}:{{ .Values.global.tag | default .Values.global.tag }}"
+  {{- end }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - "acmg-controller"
+{{- if .Values.global.logging.level }}
+            - --log_output_level={{ .Values.global.logging.level }}
+{{- end}}
+{{- if .Values.global.logAsJson }}
+            - --log_as_json
+{{- end }}
+          env:
+          - name: REVISION
+            value: "{{ .Values.revision | default `default` }}"
+      serviceAccountName: {{ .Values.acmg.name }}-service-account

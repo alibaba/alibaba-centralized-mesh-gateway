@@ -1,0 +1,37 @@
+{
+  "target": {
+    "acmg-default": {
+      "context": "/work/out/linux_amd64/dockerx_build/build.docker.acmg",
+      "dockerfile": "Dockerfile.acmg",
+      "args": {
+        "BASE_DISTRIBUTION": "debug",
+        "BASE_VERSION": "1.15-2022-09-23T19-02-18",
+        "VM_IMAGE_NAME": "",
+        "VM_IMAGE_VERSION": "",
+        "istio_version": "1.15-dev",
+        "proxy_version": "94bd57194ed66b70e231dbf22a7771a9e9e43a74"
+      },
+      "tags": [
+        "localhost:5000/acmg:latest"
+      ],
+      "platforms": [
+        "linux/amd64"
+      ],
+      "output": [
+        "type=docker"
+      ]
+    }
+  },
+  "group": {
+    "all": {
+      "targets": [
+        "default"
+      ]
+    },
+    "default": {
+      "targets": [
+        "acmg-default"
+      ]
+    }
+  }
+}

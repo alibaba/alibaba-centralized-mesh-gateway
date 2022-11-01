@@ -1,0 +1,15 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+spec:
+  components:
+    base:
+      enabled: true
+    pilot:
+      enabled: true
+    ingressGateways:
+    - name: acmg-gateway
+      enabled: true
+    acmg:
+      enabled: true
