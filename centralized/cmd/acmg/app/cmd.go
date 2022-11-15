@@ -54,6 +54,9 @@ var rootCmd = &cobra.Command{
 		} else {
 			server.Start()
 		}
+		if err := server.Run(); err != nil {
+			server.Cleanup()
+		}
 		return
 	},
 }

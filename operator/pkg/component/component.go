@@ -101,6 +101,8 @@ func NewCoreComponent(cn name.ComponentName, opts *Options) IstioComponent {
 		component = NewCNIComponent(opts)
 	case name.IstiodRemoteComponentName:
 		component = NewIstiodRemoteComponent(opts)
+	case name.AcmgComponentName:
+		component = NewACMGComponent(opts)
 	default:
 		scope.Errorf("Unknown component componentName: " + string(cn))
 	}
@@ -242,6 +244,52 @@ func (c *CNIComponent) Namespace() string {
 
 // Enabled implements the IstioComponent interface.
 func (c *CNIComponent) Enabled() bool {
+	return isCoreComponentEnabled(c.CommonComponentFields)
+}
+
+// CNIComponent is the istio cni component.
+type ACMGComponent struct {
+	*CommonComponentFields
+}
+
+// NewCNIComponent creates a new NewCNIComponent and returns a pointer to it.
+func NewACMGComponent(opts *Options) *ACMGComponent {
+	cn := name.AcmgComponentName
+	return &ACMGComponent{
+		&CommonComponentFields{
+			Options:       opts,
+			ComponentName: cn,
+		},
+	}
+}
+
+// Run implements the IstioComponent interface.
+func (c *ACMGComponent) Run() error {
+	return runComponent(c.CommonComponentFields)
+}
+
+// RenderManifest implements the IstioComponent interface.
+func (c *ACMGComponent) RenderManifest() (string, error) {
+	return renderManifest(c, c.CommonComponentFields)
+}
+
+// ComponentName implements the IstioComponent interface.
+func (c *ACMGComponent) ComponentName() name.ComponentName {
+	return c.CommonComponentFields.ComponentName
+}
+
+// ResourceName implements the IstioComponent interface.
+func (c *ACMGComponent) ResourceName() string {
+	return c.CommonComponentFields.ResourceName
+}
+
+// Namespace implements the IstioComponent interface.
+func (c *ACMGComponent) Namespace() string {
+	return c.CommonComponentFields.Namespace
+}
+
+// Enabled implements the IstioComponent interface.
+func (c *ACMGComponent) Enabled() bool {
 	return isCoreComponentEnabled(c.CommonComponentFields)
 }
 

@@ -203,12 +203,12 @@ func buildKubeClient(kubeConfig string) (kube.Client, error) {
 	return client, nil
 }
 
-func (s *Server) cleanup() {
+func (s *Server) Cleanup() {
 	// TODO, clean up all virtual service config in coredns
 }
 
-func (s *Server) checkConfig() error {
-	log.Info("check acmg config...")
+func (s *Server) checkGateWayConfig() error {
+	log.Info("check acmg gateway config...")
 	gateways, err := s.gwLister.List(labels.NewSelector())
 	if err != nil {
 		return err
@@ -222,8 +222,13 @@ func (s *Server) checkConfig() error {
 	if gateways[0].Name != s.coreDnsBuilder.gatewayData.istioGatewayName ||
 		gateways[0].Namespace != s.coreDnsBuilder.gatewayData.gatewayNamespace ||
 		gateways[0].Spec.Selector["app"] != s.coreDnsBuilder.gatewayData.centralizedGateWayName {
-		return fmt.Errorf("gateway %s not belong to acmg", gateways[0].Name)
+		return fmt.Errorf("existed gateway %s not belong to acmg", gateways[0].Name)
 	}
+	return nil
+}
+
+func (s *Server) checkTrafficServiceConfig() error {
+	// TODO
 	return nil
 }
 
@@ -263,7 +268,10 @@ func (s *Server) createCentralizedGateway() error {
 
 func (s *Server) PreStartCheck() error {
 	s.client.RunAndWait(s.ctx.Done())
-	if err := s.checkConfig(); err != nil {
+	if err := s.checkGateWayConfig(); err != nil {
+		return err
+	}
+	if err := s.checkTrafficServiceConfig(); err != nil {
 		return err
 	}
 	return nil
@@ -272,6 +280,12 @@ func (s *Server) PreStartCheck() error {
 func (s *Server) Start() {
 	go func() {
 		s.queue.Run(s.ctx.Done())
-		s.cleanup()
 	}()
+}
+
+// Run watch istio gateway config
+func (s *Server) Run() error {
+	for {
+		log.Info("TODO")
+	}
 }

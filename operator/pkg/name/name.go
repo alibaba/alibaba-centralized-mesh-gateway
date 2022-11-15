@@ -127,11 +127,12 @@ var (
 		PilotComponentName,
 		CNIComponentName,
 		IstiodRemoteComponentName,
+		AcmgComponentName,
 	}
 
 	// AllComponentNames is a list of all Istio components.
 	AllComponentNames = append(AllCoreComponentNames, IngressComponentName, EgressComponentName,
-		IstioOperatorComponentName, IstioOperatorCustomResourceName, AcmgComponentName)
+		IstioOperatorComponentName, IstioOperatorCustomResourceName)
 
 	allCoreComponentNamesMap = map[ComponentName]bool{}
 

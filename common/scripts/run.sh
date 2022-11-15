@@ -41,6 +41,7 @@ read -ra DOCKER_RUN_OPTIONS <<< "${DOCKER_RUN_OPTIONS:-}"
 # $CONTAINER_OPTIONS becomes an empty arg when quoted, so SC2086 is disabled for the
 # following command only
 # shellcheck disable=SC2086
+# TODO delete when merge code
 "${CONTAINER_CLI}" run \
     --rm \
     "${DOCKER_RUN_OPTIONS[@]}" \
@@ -56,5 +57,6 @@ read -ra DOCKER_RUN_OPTIONS <<< "${DOCKER_RUN_OPTIONS:-}"
     --mount "type=volume,source=go,destination=/go" \
     --mount "type=volume,source=gocache,destination=/gocache" \
     --mount "type=volume,source=cache,destination=/home/.cache" \
+    --mount "type=bind,source=/Users/thatwas/Code/mesh-github/istio-api/api,destination=/Users/thatwas/Code/mesh-github/istio-api/api" \
     ${CONDITIONAL_HOST_MOUNTS} \
     -w "${MOUNT_DEST}" "${IMG}" "$@"

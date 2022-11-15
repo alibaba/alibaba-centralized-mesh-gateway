@@ -8,6 +8,9 @@ exclude k8s.io/kubernetes v1.13.0
 // Client-go does not handle different versions of mergo due to some breaking changes - use the matching version
 replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 
+// TODO replace when pr istio master
+replace istio.io/api => /Users/thatwas/Code/mesh-github/istio-api/api
+
 require (
 	cloud.google.com/go/compute v1.7.0
 	cloud.google.com/go/security v1.4.0
@@ -85,7 +88,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.9.4
-	istio.io/api v0.0.0-20220907134937-b47284812feb
+	istio.io/api v0.0.0
 	istio.io/client-go v1.15.1-0.20220907135338-7f6428013c07
 	istio.io/pkg v0.0.0-20220907025138-198870de7239
 	k8s.io/api v0.24.2

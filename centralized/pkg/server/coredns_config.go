@@ -44,6 +44,15 @@ func haveString(target string, list []string) bool {
 	return false
 }
 
+func getServiceName(dns string, namespace string) string {
+	if isDnsFullName(dns) {
+		index := strings.Index(dns, "."+namespace+".svc.cluster.local")
+		return dns[:index]
+	} else {
+		return dns
+	}
+}
+
 func cleanString(target string) (ret string) {
 	ret = strings.TrimLeft(target, " ")
 	ret = strings.TrimLeft(ret, "\n")
@@ -159,6 +168,38 @@ func (b *CoreDnsBuilder) updateConfigMap(newConfigMap *v1.ConfigMap, oldConfigMa
 	return nil
 }
 
+func (b *CoreDnsBuilder) openServicePortOnGateway(namespaceServices map[string][]string) error {
+	gatewayService, err := b.kubeClient.CoreV1().Services(b.gatewayData.gatewayNamespace).Get(context.TODO(), b.gatewayData.gatewayServiceName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	var newGatewayService *v1.Service
+	gatewayService.DeepCopyInto(newGatewayService)
+	var currPorts []int32
+	var needPorts []int32
+	for _, port := range gatewayService.Spec.Ports {
+		currPorts = append(currPorts, port.Port)
+	}
+
+	for namespace, services := range namespaceServices {
+		for _, serviceName := range services {
+			service, err := b.kubeClient.CoreV1().Services(namespace).Get(context.TODO(), getServiceName(serviceName, namespace), metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			for _, port := range service.Spec.Ports {
+				needPorts = append(needPorts, port.Port)
+			}
+		}
+
+	}
+	_, err = b.kubeClient.CoreV1().Services(b.gatewayData.gatewayNamespace).Update(context.TODO(), newGatewayService, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *CoreDnsBuilder) AddVSToCoreDns(vs *v1alpha3.VirtualService) error {
 	log.Debugf("add virtualservice to coredns configmap")
 	var needAddBlock []string
@@ -170,12 +211,12 @@ func (b *CoreDnsBuilder) AddVSToCoreDns(vs *v1alpha3.VirtualService) error {
 			}
 		}
 	}
-	for k, v := range relatedServices {
+	for namespace, services := range relatedServices {
 		var serviceFullName string
 		var rewriteLine string
-		for _, service := range v {
+		for _, service := range services {
 			if !isDnsFullName(service) {
-				serviceFullName = service + "." + k + ".svc.cluster.local"
+				serviceFullName = service + "." + namespace + ".svc.cluster.local"
 			} else {
 				serviceFullName = service
 			}
