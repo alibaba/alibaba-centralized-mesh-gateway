@@ -3870,6 +3870,9 @@ spec:
                 items:
                   type: string
                 type: array
+              enableAcmg:
+                description: wether use acmg gateway.
+                type: boolean
               gateways:
                 description: The names of gateways and sidecars that should apply
                   these routes.
@@ -4653,6 +4656,9 @@ spec:
                 items:
                   type: string
                 type: array
+              enableAcmg:
+                description: wether use acmg gateway.
+                type: boolean
               gateways:
                 description: The names of gateways and sidecars that should apply
                   these routes.

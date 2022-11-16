@@ -397,6 +397,7 @@ func GetTagVersion(tagInfo string) (string, error) {
 // getProfileNSAndEnabledComponents get the profile and all the enabled components
 // from the given input files and --set flag overlays.
 func getProfileNSAndEnabledComponents(iop *v1alpha12.IstioOperator) (string, string, []string, error) {
+	// TODO Check Acmg Config
 	var enabledComponents []string
 	if iop.Spec.Components != nil {
 		for _, c := range name.AllCoreComponentNames {

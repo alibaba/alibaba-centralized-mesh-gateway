@@ -285,7 +285,5 @@ func (s *Server) Start() {
 
 // Run watch istio gateway config
 func (s *Server) Run() error {
-	for {
-		log.Info("TODO")
-	}
+
 }

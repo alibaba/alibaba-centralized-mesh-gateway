@@ -114,6 +114,8 @@ const (
 
 	// Acmg components
 	AcmgComponentName ComponentName = "Acmg"
+
+	AcmgGatewayComponentName ComponentName = "AcmgGateway"
 )
 
 // ComponentNamesConfig is used for unmarshaling legacy and addon naming data.
@@ -128,6 +130,7 @@ var (
 		CNIComponentName,
 		IstiodRemoteComponentName,
 		AcmgComponentName,
+		AcmgGatewayComponentName,
 	}
 
 	// AllComponentNames is a list of all Istio components.
@@ -155,6 +158,7 @@ var (
 		IstioOperatorCustomResourceName: "Istio operator CRDs",
 		IstiodRemoteComponentName:       "Istiod remote",
 		AcmgComponentName:               "Acmg controller",
+		AcmgGatewayComponentName:        "Acmg gateway",
 	}
 )
 

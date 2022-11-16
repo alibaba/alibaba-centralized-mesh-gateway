@@ -103,6 +103,8 @@ func NewCoreComponent(cn name.ComponentName, opts *Options) IstioComponent {
 		component = NewIstiodRemoteComponent(opts)
 	case name.AcmgComponentName:
 		component = NewACMGComponent(opts)
+	case name.AcmgGatewayComponentName:
+		component = NewACMGGatewayComponent(opts)
 	default:
 		scope.Errorf("Unknown component componentName: " + string(cn))
 	}
@@ -247,7 +249,7 @@ func (c *CNIComponent) Enabled() bool {
 	return isCoreComponentEnabled(c.CommonComponentFields)
 }
 
-// CNIComponent is the istio cni component.
+// AcmgComponent is the acmg component.
 type ACMGComponent struct {
 	*CommonComponentFields
 }
@@ -290,6 +292,52 @@ func (c *ACMGComponent) Namespace() string {
 
 // Enabled implements the IstioComponent interface.
 func (c *ACMGComponent) Enabled() bool {
+	return isCoreComponentEnabled(c.CommonComponentFields)
+}
+
+// ACMGGatewayComponent is the acmg gateway component.
+type ACMGGatewayComponent struct {
+	*CommonComponentFields
+}
+
+// NewACMGGatewayComponent creates a new NewACMGGatewayComponent and returns a pointer to it.
+func NewACMGGatewayComponent(opts *Options) *ACMGGatewayComponent {
+	cn := name.AcmgGatewayComponentName
+	return &ACMGGatewayComponent{
+		&CommonComponentFields{
+			Options:       opts,
+			ComponentName: cn,
+		},
+	}
+}
+
+// Run implements the IstioComponent interface.
+func (c *ACMGGatewayComponent) Run() error {
+	return runComponent(c.CommonComponentFields)
+}
+
+// RenderManifest implements the IstioComponent interface.
+func (c *ACMGGatewayComponent) RenderManifest() (string, error) {
+	return renderManifest(c, c.CommonComponentFields)
+}
+
+// ComponentName implements the IstioComponent interface.
+func (c *ACMGGatewayComponent) ComponentName() name.ComponentName {
+	return c.CommonComponentFields.ComponentName
+}
+
+// ResourceName implements the IstioComponent interface.
+func (c *ACMGGatewayComponent) ResourceName() string {
+	return c.CommonComponentFields.ResourceName
+}
+
+// Namespace implements the IstioComponent interface.
+func (c *ACMGGatewayComponent) Namespace() string {
+	return c.CommonComponentFields.Namespace
+}
+
+// Enabled implements the IstioComponent interface.
+func (c *ACMGGatewayComponent) Enabled() bool {
 	return isCoreComponentEnabled(c.CommonComponentFields)
 }
 

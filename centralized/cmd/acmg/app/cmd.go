@@ -44,7 +44,7 @@ var rootCmd = &cobra.Command{
 			GatewayNamespace:       server.GatewayNamespace,
 			GatewayServiceName:     server.GatewayServiceName,
 			GateWayName:            server.IstioGatewayName,
-			CentralizedGateWayName: server.CentralizedGateWayName,
+			CentralizedGateWayName: server.CentralizedGateWayAppName,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create acmg informer service: %v", err)
@@ -54,9 +54,7 @@ var rootCmd = &cobra.Command{
 		} else {
 			server.Start()
 		}
-		if err := server.Run(); err != nil {
-			server.Cleanup()
-		}
+
 		return
 	},
 }
