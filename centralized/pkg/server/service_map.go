@@ -3,7 +3,7 @@ package server
 import "gopkg.in/mgo.v2/bson"
 
 var (
-	serviceMap = make(map[string]uint32)
+	serviceMap = make(map[ServiceOnAcmg]uint32)
 )
 
 func deepCopy(value interface{}) interface{} {
@@ -30,12 +30,12 @@ func deepCopy(value interface{}) interface{} {
 	return value
 }
 
-func Put(service string) uint32 {
+func Put(service ServiceOnAcmg) uint32 {
 	serviceMap[service] = serviceMap[service] + 1
 	return serviceMap[service]
 }
 
-func Del(service string) uint32 {
+func Del(service ServiceOnAcmg) uint32 {
 	serviceMap[service] = serviceMap[service] - 1
 	if serviceMap[service] == 0 {
 		delete(serviceMap, service)

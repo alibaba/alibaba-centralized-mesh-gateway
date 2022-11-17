@@ -4,19 +4,39 @@ import (
 	"context"
 	"fmt"
 	"istio.io/client-go/pkg/apis/networking/v1alpha3"
+	"istio.io/pkg/log"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"strings"
 )
 
-import "istio.io/pkg/log"
-
-type CoreDnsBuilder struct {
+type ACMGBuilder struct {
 	kubeClient  kubernetes.Interface
-	gatewayData GatewayData
 	content     string
 	deepNum     int
+	acmgGateway *AcmgGateway
+}
+
+func (b *ACMGBuilder) getGatewayNamespace() string {
+	return b.acmgGateway.gatewayData.gatewayNamespace
+}
+
+func (b *ACMGBuilder) getGatewayServiceName() string {
+	return b.acmgGateway.gatewayData.gatewayServiceName
+}
+
+func (b *ACMGBuilder) getIstioGatewayName() string {
+	return b.acmgGateway.gatewayData.istioGatewayName
+}
+
+func (b *ACMGBuilder) getGatewayDns() string {
+	return b.acmgGateway.gatewayData.gatewayDns
+}
+
+func (b *ACMGBuilder) getGatewayAppName() string {
+	return b.acmgGateway.gatewayData.centralizedGateWayName
 }
 
 func filterVirtualService(virtualService *v1alpha3.VirtualService, gatewayNamespace string, gatewayName string) bool {
@@ -53,6 +73,24 @@ func getServiceName(dns string, namespace string) string {
 	}
 }
 
+func transDnsToServiceOnAcmg(dns string) ServiceOnAcmg {
+	return ServiceOnAcmg{
+		namespace: getServiceNamespaceByDns(dns),
+		name:      getServiceNameByDns(dns),
+	}
+}
+func getServiceNamespaceByDns(dns string) string {
+	name := strings.LastIndex(dns, ".svc.cluster.local")
+	namespace := strings.LastIndex(dns[:name], ".")
+	return dns[namespace+1 : name]
+}
+
+func getServiceNameByDns(dns string) string {
+	name := strings.LastIndex(dns, ".svc.cluster.local")
+	namespace := strings.LastIndex(dns[:name], ".")
+	return dns[:namespace]
+}
+
 func cleanString(target string) (ret string) {
 	ret = strings.TrimLeft(target, " ")
 	ret = strings.TrimLeft(ret, "\n")
@@ -64,13 +102,13 @@ func cleanString(target string) (ret string) {
 	return ret
 }
 
-func (b *CoreDnsBuilder) insertBlock(block []string) {
+func (b *ACMGBuilder) insertBlock(block []string) {
 	for _, line := range block {
 		b.content += "    " + line + "\n"
 	}
 }
 
-func (b *CoreDnsBuilder) processLineForAdd(line string, block []string) {
+func (b *ACMGBuilder) processLineForAdd(line string, block []string) {
 	b.content += line + "\n"
 	var haveFlag = false
 	if strings.Contains(line, "{") {
@@ -89,19 +127,20 @@ func (b *CoreDnsBuilder) processLineForAdd(line string, block []string) {
 	}
 }
 
-func (b *CoreDnsBuilder) processLineForDelete(line string, deleteBlock []string) {
+func (b *ACMGBuilder) processLineForDelete(line string, deleteBlock []string) {
 	if !haveString(cleanString(line), deleteBlock) {
 		b.content += line + "\n"
 		return
 	}
 }
 
-func (b *CoreDnsBuilder) buildNewConfigMapForAdd(oldConfigMap *v1.ConfigMap, insertBlock []string) (newConfigMap *v1.ConfigMap, err error) {
+func (b *ACMGBuilder) buildNewConfigMapForAdd(oldConfigMap *v1.ConfigMap, insertBlock []string) (*v1.ConfigMap, error) {
+	var newConfigMap v1.ConfigMap
 	if len(insertBlock) == 0 {
 		log.Warn("insertBlock is empty")
-		return
+		return nil, nil
 	}
-	oldConfigMap.DeepCopyInto(newConfigMap)
+	oldConfigMap.DeepCopyInto(&newConfigMap)
 	for k, v := range oldConfigMap.Data {
 		if k == "Corefile" {
 			lines := strings.Split(v, "\n")
@@ -113,14 +152,14 @@ func (b *CoreDnsBuilder) buildNewConfigMapForAdd(oldConfigMap *v1.ConfigMap, ins
 
 	if b.content == "" {
 		log.Errorf("Error Content is empty after build: %s", b.content)
-		return newConfigMap, fmt.Errorf("add coredns content is empty")
+		return &newConfigMap, fmt.Errorf("add coredns content is empty")
 	}
 	newConfigMap.Data["Corefile"] = b.content
 	b.content = ""
-	return newConfigMap, nil
+	return &newConfigMap, nil
 }
 
-func (b *CoreDnsBuilder) buildNewConfigMapForDelete(oldConfigMap *v1.ConfigMap, deleteBlock []string) (newConfigMap *v1.ConfigMap, err error) {
+func (b *ACMGBuilder) buildNewConfigMapForDelete(oldConfigMap *v1.ConfigMap, deleteBlock []string) (newConfigMap *v1.ConfigMap, err error) {
 	if len(deleteBlock) == 0 {
 		log.Warn("deleteBlock is empty")
 		return
@@ -145,7 +184,7 @@ func (b *CoreDnsBuilder) buildNewConfigMapForDelete(oldConfigMap *v1.ConfigMap, 
 	return newConfigMap, nil
 }
 
-func (b *CoreDnsBuilder) rollBackConfigMapData(newConfigMap *v1.ConfigMap, maxRetry int) error {
+func (b *ACMGBuilder) rollBackConfigMapData(newConfigMap *v1.ConfigMap, maxRetry int) error {
 	var err error
 	for i := 0; i < maxRetry; i++ {
 		_, err = b.kubeClient.CoreV1().ConfigMaps("kube-system").Update(context.TODO(), newConfigMap, metav1.UpdateOptions{})
@@ -158,7 +197,7 @@ func (b *CoreDnsBuilder) rollBackConfigMapData(newConfigMap *v1.ConfigMap, maxRe
 	return err
 }
 
-func (b *CoreDnsBuilder) updateConfigMap(newConfigMap *v1.ConfigMap, oldConfigMap *v1.ConfigMap) error {
+func (b *ACMGBuilder) updateConfigMap(newConfigMap *v1.ConfigMap, oldConfigMap *v1.ConfigMap) error {
 	_, err := b.kubeClient.CoreV1().ConfigMaps("kube-system").Update(context.TODO(), newConfigMap, metav1.UpdateOptions{})
 	if err != nil {
 		log.Errorf("updateConfigMap error %s", err)
@@ -168,43 +207,13 @@ func (b *CoreDnsBuilder) updateConfigMap(newConfigMap *v1.ConfigMap, oldConfigMa
 	return nil
 }
 
-func (b *CoreDnsBuilder) openServicePortOnGateway(namespaceServices map[string][]string) error {
-	gatewayService, err := b.kubeClient.CoreV1().Services(b.gatewayData.gatewayNamespace).Get(context.TODO(), b.gatewayData.gatewayServiceName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	var newGatewayService *v1.Service
-	gatewayService.DeepCopyInto(newGatewayService)
-	var currPorts []int32
-	var needPorts []int32
-	for _, port := range gatewayService.Spec.Ports {
-		currPorts = append(currPorts, port.Port)
-	}
-
-	for namespace, services := range namespaceServices {
-		for _, serviceName := range services {
-			service, err := b.kubeClient.CoreV1().Services(namespace).Get(context.TODO(), getServiceName(serviceName, namespace), metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			for _, port := range service.Spec.Ports {
-				needPorts = append(needPorts, port.Port)
-			}
-		}
-
-	}
-	_, err = b.kubeClient.CoreV1().Services(b.gatewayData.gatewayNamespace).Update(context.TODO(), newGatewayService, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (b *CoreDnsBuilder) AddVSToCoreDns(vs *v1alpha3.VirtualService) error {
+func (b *ACMGBuilder) AddVSToCoreDns(vs *v1alpha3.VirtualService) ([]ServiceOnAcmg, error) {
 	log.Debugf("add virtualservice to coredns configmap")
 	var needAddBlock []string
+	serviceOnAcmgList := make([]ServiceOnAcmg, 0)
 	relatedServices := make(map[string][]string)
-	if filterVirtualService(vs, b.gatewayData.gatewayNamespace, b.gatewayData.istioGatewayName) {
+
+	if filterVirtualService(vs, b.getGatewayNamespace(), b.getIstioGatewayName()) {
 		for _, http := range vs.Spec.GetHttp() {
 			for _, ds := range http.Route {
 				relatedServices[vs.Namespace] = append(relatedServices[vs.Namespace], ds.Destination.Host)
@@ -219,13 +228,16 @@ func (b *CoreDnsBuilder) AddVSToCoreDns(vs *v1alpha3.VirtualService) error {
 				serviceFullName = service + "." + namespace + ".svc.cluster.local"
 			} else {
 				serviceFullName = service
+
 			}
-			num := Put(serviceFullName)
+			serviceOnAcmg := transDnsToServiceOnAcmg(serviceFullName)
+			num := Put(serviceOnAcmg)
 			if num == 1 {
-				rewriteLine = "rewrite name " + serviceFullName + " " + b.gatewayData.gatewayDns
+				rewriteLine = "rewrite name " + serviceFullName + " " + b.getGatewayDns()
 				if !haveString(rewriteLine, needAddBlock) {
 					needAddBlock = append(needAddBlock, rewriteLine)
 				}
+				serviceOnAcmgList = append(serviceOnAcmgList, serviceOnAcmg)
 			}
 		}
 	}
@@ -234,24 +246,25 @@ func (b *CoreDnsBuilder) AddVSToCoreDns(vs *v1alpha3.VirtualService) error {
 		configMap, err := b.kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.TODO(), "coredns", metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("get core dns configmap failed %s", err)
-			return fmt.Errorf("get core dns configmap failed")
+			return nil, fmt.Errorf("get core dns configmap failed")
 		}
 		newConfigMap, err := b.buildNewConfigMapForAdd(configMap, needAddBlock)
 		if err != nil {
 			log.Errorf("Error content is empty after build: %s", err)
-			return err
+			return nil, err
 		} else {
-			return b.updateConfigMap(newConfigMap, configMap)
+			return serviceOnAcmgList, b.updateConfigMap(newConfigMap, configMap)
 		}
 	}
-	return nil
+
+	return nil, nil
 }
 
-func (b *CoreDnsBuilder) deleteVSFromCoreDns(vs *v1alpha3.VirtualService) error {
+func (b *ACMGBuilder) deleteVSFromCoreDns(vs *v1alpha3.VirtualService) error {
 	log.Debugf("delete virtualservice from coredns configmap")
 	var needDeleteBlock []string
 	relateServices := make(map[string][]string)
-	if filterVirtualService(vs, b.gatewayData.gatewayNamespace, b.gatewayData.istioGatewayName) {
+	if filterVirtualService(vs, b.getGatewayNamespace(), b.getIstioGatewayName()) {
 		for _, http := range vs.Spec.GetHttp() {
 			for _, ds := range http.Route {
 				relateServices[vs.Namespace] = append(relateServices[vs.Namespace], ds.Destination.Host)
@@ -267,9 +280,10 @@ func (b *CoreDnsBuilder) deleteVSFromCoreDns(vs *v1alpha3.VirtualService) error 
 			} else {
 				serviceFullName = service
 			}
-			num := Del(serviceFullName)
+			serviceOnAcmg := transDnsToServiceOnAcmg(serviceFullName)
+			num := Del(serviceOnAcmg)
 			if num == 0 {
-				deleteLine = "rewrite name " + serviceFullName + " " + b.gatewayData.gatewayDns
+				deleteLine = "rewrite name " + serviceFullName + " " + b.getGatewayDns()
 				if !haveString(deleteLine, needDeleteBlock) {
 					needDeleteBlock = append(needDeleteBlock, deleteLine)
 				}
@@ -289,6 +303,34 @@ func (b *CoreDnsBuilder) deleteVSFromCoreDns(vs *v1alpha3.VirtualService) error 
 		} else {
 			return b.updateConfigMap(newConfigMap, configMap)
 		}
+	}
+	return nil
+}
+
+// OpenServicePortOnGateway port != targetPort port == targetPort
+func (b *ACMGBuilder) OpenServicePortOnGateway(serviceOnAcmgs []ServiceOnAcmg) error {
+	if len(serviceOnAcmgs) == 0 {
+		return nil
+	}
+
+	acmgGatewayPorts := make([]AcmgGatewayPort, 0)
+	for _, serviceOnAcmg := range serviceOnAcmgs {
+		service, err := b.kubeClient.CoreV1().Services(serviceOnAcmg.namespace).Get(context.TODO(), serviceOnAcmg.name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		for _, port := range service.Spec.Ports {
+			acmgGatewayPorts = append(acmgGatewayPorts, AcmgGatewayPort{
+				port:             port.Port,
+				targetPort:       intstr.FromInt(int(port.Port)),
+				protocol:         "TCP",
+				serviceName:      serviceOnAcmg.name,
+				serviceNamespace: serviceOnAcmg.namespace,
+			})
+		}
+	}
+	if err := b.acmgGateway.OpenServicePortOnGatewayService(acmgGatewayPorts); err != nil {
+		return err
 	}
 	return nil
 }

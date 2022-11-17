@@ -3,13 +3,15 @@ package server
 import (
 	"istio.io/client-go/pkg/apis/networking/v1alpha3"
 	"istio.io/pkg/env"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var (
-	IstioGatewayName          = env.RegisterStringVar("GATEWAY_NAME", "acmg-gateway", "").Get()
-	GatewayServiceName        = env.RegisterStringVar("GATEWAY_SERVICE_NAME", "acmg-gateway-service", "").Get()
-	GatewayNamespace          = env.RegisterStringVar("GATEWAY_NAMESPACE", "istio-system", "").Get()
-	CentralizedGateWayAppName = env.RegisterStringVar("CENTRALIZED_GATEWAY_APP_NAME", "acmg-traffic-gateway", "").Get()
+	IstioGatewayName          = env.RegisterStringVar("GATEWAY_NAME", "", "").Get()
+	GatewayServiceName        = env.RegisterStringVar("GATEWAY_SERVICE_NAME", "", "").Get()
+	GatewayNamespace          = env.RegisterStringVar("GATEWAY_NAMESPACE", "", "").Get()
+	CentralizedGateWayAppName = env.RegisterStringVar("CENTRALIZED_GATEWAY_APP_NAME", "", "").Get()
 )
 
 type CoreDnsHijackArgs struct {
@@ -41,4 +43,17 @@ type GatewayData struct {
 	gatewayServiceName     string
 	gatewayNamespace       string
 	gatewayDns             string
+}
+
+type AcmgGatewayPort struct {
+	serviceName      string
+	serviceNamespace string
+	port             int32
+	protocol         v1.Protocol
+	targetPort       intstr.IntOrString
+}
+
+type ServiceOnAcmg struct {
+	namespace string
+	name      string
 }

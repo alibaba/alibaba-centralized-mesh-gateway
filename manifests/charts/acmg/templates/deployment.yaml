@@ -36,4 +36,13 @@ spec:
           env:
           - name: REVISION
             value: "{{ .Values.revision | default `default` }}"
+          - name: GATEWAY_NAME
+            value: "{{ .Values.acmg.gatewayName }}"
+          - name: GATEWAY_SERVICE_NAME
+            value: "{{ .Values.acmg.gatewayServiceName }}"
+          - name: CENTRALIZED_GATEWAY_APP_NAME
+            value: "{{ .Values.acmg.centralizedGateWayAppName }}"
+          - name: GATEWAY_NAMESPACE
+            value: "{{ .Values.acmg.gatewayNamespace }}"
+
       serviceAccountName: {{ .Values.acmg.name }}-service-account

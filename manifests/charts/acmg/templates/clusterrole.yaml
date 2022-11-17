@@ -7,8 +7,8 @@ metadata:
     operator.istio.io/component: "acmg-hijack"
 rules:
 - apiGroups: [ "" ]
-  resources: [ "configmaps" ]
-  verbs: [ "create", "get", "list", "watch", "update" ]
+  resources: [ "configmaps", "services" ]
+  verbs: [ "create", "get", "list", "watch", "update", "delete" ]
 - apiGroups: [ "networking.istio.io" ]
   resources: [ "gateways", "virtualservices" ]
   verbs: [ "create", "get", "list", "watch", "patch" ]

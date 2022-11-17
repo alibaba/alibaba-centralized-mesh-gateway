@@ -43,7 +43,7 @@ acmg-gateway:
   #serviceAnnotations:
   #    cloud.google.com/load-balancer-type: "internal"
   podAnnotations: {}
-  type: LoadBalancer #change to NodePort, ClusterIP or LoadBalancer if need be
+  type: ClusterIP #change to NodePort, ClusterIP or LoadBalancer if need be
   ##############
   secretVolumes:
   - name: ingressgateway-certs

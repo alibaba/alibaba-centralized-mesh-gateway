@@ -25,7 +25,7 @@ type Server struct {
 	client      kube.Client
 	istioClient istioclient.Interface
 
-	coreDnsBuilder *CoreDnsBuilder
+	coreDnsBuilder *ACMGBuilder
 }
 
 func NewServer(ctx context.Context, args CoreDnsHijackArgs) (*Server, error) {
@@ -38,7 +38,7 @@ func NewServer(ctx context.Context, args CoreDnsHijackArgs) (*Server, error) {
 		istioClient: client.Istio(),
 		ctx:         ctx,
 	}
-	coreDnsBuilder := &CoreDnsBuilder{
+	acmgGateway := &AcmgGateway{
 		kubeClient: client.Kube(),
 		gatewayData: GatewayData{
 			gatewayNamespace:       args.GatewayNamespace,
@@ -47,6 +47,10 @@ func NewServer(ctx context.Context, args CoreDnsHijackArgs) (*Server, error) {
 			centralizedGateWayName: args.CentralizedGateWayName,
 			gatewayDns:             args.GatewayServiceName + "." + args.GatewayNamespace + ".svc.cluster.local",
 		},
+	}
+	coreDnsBuilder := &ACMGBuilder{
+		kubeClient:  client.Kube(),
+		acmgGateway: acmgGateway,
 	}
 	s.coreDnsBuilder = coreDnsBuilder
 	s.setupHandler()
@@ -142,7 +146,14 @@ func (s *Server) Reconcile(key any) error {
 		if err != nil || vs == nil {
 			return err
 		}
-		return s.coreDnsBuilder.AddVSToCoreDns(vs)
+		if serviceOnAcmg, err := s.coreDnsBuilder.AddVSToCoreDns(vs); err != nil {
+			return err
+		} else {
+			if err := s.coreDnsBuilder.OpenServicePortOnGateway(serviceOnAcmg); err != nil {
+				return err
+			}
+		}
+		return nil
 	case UpdateVS:
 		log.Infof("[CoreDnsMap] Try to Update VirtualService")
 		vs, err := s.getVirtualService(namespace, name)
@@ -155,7 +166,11 @@ func (s *Server) Reconcile(key any) error {
 			return err
 		}
 		log.Infof("[CoreDnsMap] Try to Add New VirtualService")
-		return s.coreDnsBuilder.AddVSToCoreDns(vs)
+		if _, err := s.coreDnsBuilder.AddVSToCoreDns(vs); err != nil {
+			return err
+		} else {
+			return nil
+		}
 	case DeleteVS:
 		log.Infof("[CoreDnsMap] Try to delete VirtualService")
 		vs, err := s.getVirtualService(namespace, name)
@@ -219,9 +234,9 @@ func (s *Server) checkGateWayConfig() error {
 	if len(gateways) > 1 {
 		return fmt.Errorf("gateway num is %d, should be 1", len(gateways))
 	}
-	if gateways[0].Name != s.coreDnsBuilder.gatewayData.istioGatewayName ||
-		gateways[0].Namespace != s.coreDnsBuilder.gatewayData.gatewayNamespace ||
-		gateways[0].Spec.Selector["app"] != s.coreDnsBuilder.gatewayData.centralizedGateWayName {
+	if gateways[0].Name != s.coreDnsBuilder.getIstioGatewayName() ||
+		gateways[0].Namespace != s.coreDnsBuilder.getGatewayNamespace() ||
+		gateways[0].Spec.Selector["app"] != s.coreDnsBuilder.getGatewayAppName() {
 		return fmt.Errorf("existed gateway %s not belong to acmg", gateways[0].Name)
 	}
 	return nil
@@ -235,12 +250,12 @@ func (s *Server) checkTrafficServiceConfig() error {
 func (s *Server) getDefaultGateWay() *v1alpha3.Gateway {
 	return &v1alpha3.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.coreDnsBuilder.gatewayData.istioGatewayName,
-			Namespace: s.coreDnsBuilder.gatewayData.gatewayNamespace,
+			Name:      s.coreDnsBuilder.getIstioGatewayName(),
+			Namespace: s.coreDnsBuilder.getGatewayNamespace(),
 		},
 		Spec: apiv1alpha3.Gateway{
 			Selector: map[string]string{
-				"app": s.coreDnsBuilder.gatewayData.centralizedGateWayName,
+				"app": s.coreDnsBuilder.getGatewayAppName(),
 			},
 			Servers: []*apiv1alpha3.Server{
 				{
@@ -259,7 +274,7 @@ func (s *Server) getDefaultGateWay() *v1alpha3.Gateway {
 }
 
 func (s *Server) createCentralizedGateway() error {
-	_, err := s.istioClient.NetworkingV1alpha3().Gateways(s.coreDnsBuilder.gatewayData.gatewayNamespace).Create(context.TODO(), s.getDefaultGateWay(), metav1.CreateOptions{})
+	_, err := s.istioClient.NetworkingV1alpha3().Gateways(s.coreDnsBuilder.getGatewayNamespace()).Create(context.TODO(), s.getDefaultGateWay(), metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -285,5 +300,5 @@ func (s *Server) Start() {
 
 // Run watch istio gateway config
 func (s *Server) Run() error {
-
+	return nil
 }
