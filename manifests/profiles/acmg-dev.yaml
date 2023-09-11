@@ -1,0 +1,56 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  # You may override parts of meshconfig by uncommenting the following lines.
+  meshConfig:
+    acmgMesh:
+      mode: DEFAULT
+    defaultConfig:
+      proxyMetadata:
+        ISTIO_META_ENABLE_HBONE: "true"
+    # Telemetry API is used with ambient instead of EnvoyFilters
+    defaultProviders:
+      metrics:
+        - prometheus
+    extensionProviders:
+      - name: prometheus
+        prometheus: {}
+
+  components:
+    pilot:
+      enabled: true
+      hub: acmg-registry.us-west-1.cr.aliyuncs.com/istio-testing
+      tag: 0.1
+
+    cni:
+      enabled: true
+      hub: acmg-registry.us-west-1.cr.aliyuncs.com/istio-testing
+      tag: 0.1
+
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: false
+
+  values:
+    global:
+      logging:
+        level: "default:debug"
+    pilot:
+      env:
+        # Setup more secure default that is off in 'default' only for backwards compatibility
+        VERIFY_CERTIFICATE_AT_CLIENT: "true"
+        ENABLE_AUTO_SNI: "true"
+
+        PILOT_ENABLE_INBOUND_PASSTHROUGH: "false" # TODO(https://github.com/solo-io/istio-sidecarless/issues/155)
+    cni:
+      logLevel: "debug"
+      privileged: true
+      acmg:
+        enabled: true
+      # TODO: For enhanced security, ambient defaults to distroless images
+      # variant: distroless
+    telemetry:
+      # Telemetry handled with Telemetry API only
+      enabled: false
+      v2:
+        enabled: false

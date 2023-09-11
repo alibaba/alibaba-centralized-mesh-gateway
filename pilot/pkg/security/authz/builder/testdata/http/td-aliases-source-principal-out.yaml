@@ -1,0 +1,42 @@
+name: envoy.filters.http.rbac
+typedConfig:
+  '@type': type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
+  rules:
+    policies:
+      ns[foo]-policy[httpbin]-rule[0]:
+        permissions:
+        - andRules:
+            rules:
+            - any: true
+        principals:
+        - andIds:
+            ids:
+            - orIds:
+                ids:
+                - filterState:
+                    key: io.istio.peer_principal
+                    stringMatch:
+                      safeRegex:
+                        regex: .*/ns/istio-system/.*
+            - orIds:
+                ids:
+                - filterState:
+                    key: io.istio.peer_principal
+                    stringMatch:
+                      safeRegex:
+                        regex: .+
+                - filterState:
+                    key: io.istio.peer_principal
+                    stringMatch:
+                      safeRegex:
+                        regex: spiffe://.*/ns/foo/sa/all-td
+                - filterState:
+                    key: io.istio.peer_principal
+                    stringMatch:
+                      safeRegex:
+                        regex: spiffe://.*-td/ns/foo/sa/prefix-td
+                - filterState:
+                    key: io.istio.peer_principal
+                    stringMatch:
+                      exact: spiffe://some-trustdomain/ns/foo/sa/prefix-td
+  shadowRulesStatPrefix: istio_dry_run_allow_
